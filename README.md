@@ -17,7 +17,7 @@ HY-Motion ships with bfloat16 as the default tensor dtype. This is fine on NVIDI
 
 AMD EPYC (and most consumer Ryzen) processors do not have hardware support for bfloat16 arithmetic. When PyTorch encounters bfloat16 tensors on these CPUs, it falls back to software emulation, which is roughly **~300x slower** than native float32 and also prevents MKL multi-threading from kicking in. A generation that should take 1-3 minutes on CPU instead takes hours.
 
-The fix: when running on CPU, we explicitly cast all model pipelines to float32 via `pipeline.float()` before inference. This gives us proper MKL-accelerated GEMM and brings CPU generation time down to 1-3 minutes (versus seconds on a 24GB+ VRAM GPU).
+The fix: when running on CPU, we explicitly cast all model pipelines to float32 via `pipeline.float()` before inference. This gives us proper MKL-accelerated GEMM and brings CPU generation time down.
 
 ### Configuration
 
