@@ -52,6 +52,49 @@ docker compose up
 DEVICE=cpu docker compose up
 ```
 
+## Usage
+
+Generate a BVH animation:
+
+```bash
+curl -X POST http://localhost:8100/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A person is dancing"}' \
+  | jq .download_url
+# => "/animations/abc123def456.bvh"
+
+curl -O http://localhost:8100/animations/abc123def456.bvh
+```
+
+Generate a looping GLB with custom options:
+
+```bash
+curl -X POST http://localhost:8100/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A person waves hello",
+    "format": "glb",
+    "duration": 3.0,
+    "loop": true,
+    "zero_root_xz": true
+  }' | jq .
+```
+
+Generate with a custom avatar rig (multipart upload):
+
+```bash
+curl -X POST http://localhost:8100/generate/upload \
+  -F "prompt=A person is walking" \
+  -F "format=glb" \
+  -F "avatar_glb=@my_avatar.glb"
+```
+
+Health check:
+
+```bash
+curl http://localhost:8100/health | jq .
+```
+
 ## License
 
 MIT — see [LICENSE.md](LICENSE.md)
