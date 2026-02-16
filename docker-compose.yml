@@ -1,0 +1,44 @@
+x-common: &common
+  build: .
+  ports:
+    - "8100:8100"
+  volumes:
+    - ./data/output:/data/output
+  environment: &common-env
+    DEVICE_IDS: ${DEVICE_IDS:-0}
+    MODEL_VARIANT: ${MODEL_VARIANT:-lite}
+    ENABLE_PROMPT_REWRITE: ${ENABLE_PROMPT_REWRITE:-false}
+    DEFAULT_NUM_SEEDS: ${DEFAULT_NUM_SEEDS:-1}
+    HF_TOKEN: ${HF_TOKEN:-}
+    USE_HF_MODELS: "1"
+  restart: unless-stopped
+
+services:
+  gpu:
+    <<: *common
+    environment:
+      <<: *common-env
+      DEVICE: cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  cpu:
+    <<: *common
+    environment:
+      <<: *common-env
+      DEVICE: cpu
+      OMP_NUM_THREADS: "64"
+      MKL_NUM_THREADS: "64"
+      OMP_PROC_BIND: CLOSE
+      OMP_SCHEDULE: STATIC
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    profiles: ["test"]

@@ -1,0 +1,10 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir numpy scipy pygltflib pytest
+
+COPY app/ ./app/
+COPY tests/ ./tests/
+
+CMD ["python", "-m", "pytest", "tests/", "-v"]
