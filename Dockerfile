@@ -35,11 +35,12 @@ RUN pip3 install --no-cache-dir -r requirements.txt \
 # 3) CLIP ViT-L/14 sentence embeddings (~1 GB)
 ARG HF_TOKEN=""
 ARG MODEL_VARIANT=lite
+ENV HF_TOKEN=$HF_TOKEN
 RUN python3 -c "\
 from huggingface_hub import snapshot_download; \
 folders = {'full': 'HY-Motion-1.0', 'lite': 'HY-Motion-1.0-Lite'}; \
 variant = '${MODEL_VARIANT}'; \
-snapshot_download('tencent/HY-Motion-1.0', allow_patterns=f'{folders[variant]}/*', local_dir='/data/models')"
+snapshot_download('tencent/HY-Motion-1.0', allow_patterns=f'{folders[variant]}/**', local_dir='/data/models')"
 
 RUN python3 -c "\
 from transformers import AutoTokenizer, AutoModelForCausalLM, CLIPTokenizer, CLIPTextModel; \
@@ -52,7 +53,8 @@ CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14', max_length=77); \
 CLIPTextModel.from_pretrained('openai/clip-vit-large-patch14'); \
 print('All models downloaded.')"
 
-# Block all runtime HuggingFace downloads
+# Clear token and block all runtime HuggingFace downloads
+ENV HF_TOKEN=""
 ENV HF_HUB_OFFLINE=1
 ENV TRANSFORMERS_OFFLINE=1
 

@@ -172,6 +172,11 @@ def extract_rest_from_glb(glb_data: bytes) -> dict[str, tuple[float, float, floa
         logger.warning("No Mixamo bones found in GLB — using RPM defaults")
         return RPM_REST_ROTATIONS_XYZW
 
+    # Fill any missing bones from RPM defaults so the full skeleton is covered
+    for bone in _BONES_OF_INTEREST:
+        if bone not in result and bone in RPM_REST_ROTATIONS_XYZW:
+            result[bone] = RPM_REST_ROTATIONS_XYZW[bone]
+
     logger.info(f"Extracted rest quaternions for {len(result)} bones from custom GLB")
     return result
 
@@ -359,6 +364,11 @@ def _ensure_quaternion_continuity(quats: np.ndarray) -> np.ndarray:
     n = len(quats)
     if n < 3:
         return quats
+
+    # Pass 0: normalize frame 0 to positive-w hemisphere so exported
+    # quaternions match the rest rotation sign convention (w ≥ 0).
+    if quats[0][0] < 0:
+        quats[0] = -quats[0]
 
     # Pass 1: basic sign continuity
     for i in range(1, n):

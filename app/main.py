@@ -15,6 +15,8 @@ import logging
 import os
 import time
 import uuid
+
+import numpy as np
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -201,10 +203,27 @@ async def _generate(
             logger.warning(f"Failed to extract rest pose from avatar GLB: {e}")
             # Fall back to RPM defaults
 
+    # Fix ground alignment: HY-Motion aligns ground using the lowest SMPL *mesh*
+    # vertex, but retargeting only transfers joint rotations/positions. The SMPL foot
+    # mesh extends below its foot joints, so the mesh-based offset makes RPM feet
+    # float above ground. Re-align using foot joint positions instead.
+    transl = result["transl"]
+    keypoints3d = result.get("keypoints3d")
+    if keypoints3d is not None:
+        # SMPL joints 10 (left_foot) and 11 (right_foot) are the toe/foot-tip joints,
+        # closest to actual ground contact. After mesh-based alignment their Y > 0
+        # by the foot mesh thickness — subtract that so joints define the ground.
+        foot_y = keypoints3d[:, [10, 11], 1]  # (L, 2)
+        min_foot_y = float(np.min(foot_y))
+        if min_foot_y > 0:
+            logger.info(f"Correcting ground offset: foot joints were {min_foot_y:.4f}m above mesh ground")
+            transl = transl.copy()
+            transl[:, 1] -= min_foot_y
+
     # Retarget SMPL → Mixamo
     retargeted = retarget_to_mixamo(
         rot6d=result["rot6d"],
-        transl=result["transl"],
+        transl=transl,
         fps=fps,
         zero_root_xz=zero_root_xz,
         scale=scale,

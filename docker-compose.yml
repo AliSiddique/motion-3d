@@ -1,5 +1,9 @@
 x-common: &common
-  build: .
+  build:
+    context: .
+    args:
+      HF_TOKEN: ${HF_TOKEN:-}
+      MODEL_VARIANT: ${MODEL_VARIANT:-lite}
   ports:
     - "8100:8100"
   volumes:

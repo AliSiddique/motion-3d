@@ -140,14 +140,19 @@ class MotionGenerator:
         # and Savitzky-Golay smoothing on translation, plus ground alignment.
         rot6d = model_output["rot6d"]
         transl = model_output["transl"]
+        keypoints3d = model_output.get("keypoints3d")
         if isinstance(rot6d, torch.Tensor):
             rot6d = rot6d.cpu().numpy()
         if isinstance(transl, torch.Tensor):
             transl = transl.cpu().numpy()
+        if keypoints3d is not None and isinstance(keypoints3d, torch.Tensor):
+            keypoints3d = keypoints3d.cpu().numpy()
         if rot6d.ndim == 4:
             rot6d = rot6d[0]    # (L, J, 6) — take first batch element
         if transl.ndim == 3:
             transl = transl[0]  # (L, 3)
+        if keypoints3d is not None and keypoints3d.ndim == 4:
+            keypoints3d = keypoints3d[0]  # (L, J, 3) — take first batch element
 
         fps = 30  # HY-Motion outputs at 30fps
         num_frames = rot6d.shape[0]
@@ -160,8 +165,9 @@ class MotionGenerator:
         )
 
         return {
-            "rot6d": rot6d,       # (L, J, 6) — 22 joints in 6D rotation format
-            "transl": transl,     # (L, 3) — root translation
+            "rot6d": rot6d,             # (L, J, 6) — 22 joints in 6D rotation format
+            "transl": transl,           # (L, 3) — root translation
+            "keypoints3d": keypoints3d, # (L, J, 3) — joint positions or None
             "fps": fps,
             "duration": actual_duration,
             "prompt": prompt,
