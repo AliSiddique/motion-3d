@@ -1,6 +1,6 @@
 # animation-gen
 
-A FastAPI service that generates 3D skeletal animations from text prompts using [Tencent HY-Motion 1.0](https://github.com/Tencent/HY-Motion), with automatic retargeting to Mixamo/ReadyPlayerMe skeletons.
+A FastAPI service that generates 3D skeletal animations from text prompts using [Tencent HY-Motion 1.0](https://github.com/Tencent-Hunyuan/HY-Motion-1.0), with automatic retargeting to Mixamo/ReadyPlayerMe skeletons.
 
 ## What it does
 
