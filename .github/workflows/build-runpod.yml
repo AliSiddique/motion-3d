@@ -1,0 +1,50 @@
+name: Build Runpod image
+
+# Builds Dockerfile.runpod and pushes it to GHCR so Runpod Serverless can pull it.
+# The image is lean (models download at cold start), so it fits a free runner.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile.runpod"
+      - "runpod_handler.py"
+      - "app/**"
+      - "requirements.txt"
+      - ".github/workflows/build-runpod.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          sudo docker image prune -af || true
+          df -h /
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.runpod
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/hymotion-runpod:latest

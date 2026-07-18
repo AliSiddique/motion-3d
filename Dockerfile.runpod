@@ -1,0 +1,44 @@
+# Runpod Serverless image (lean) — HY-Motion + retargeting, entrypoint is the
+# Runpod handler. Models are NOT baked in; they download once at cold start to
+# /data/models (attach a Runpod network volume there so it persists across
+# workers). This keeps the image small enough to build on GitHub Actions.
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-dev git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip3 install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# HY-Motion repo (git submodule) + its deps
+COPY vendor/HY-Motion-1.0 /opt/HY-Motion-1.0
+RUN pip3 install --no-cache-dir -r /opt/HY-Motion-1.0/requirements.txt
+
+ENV HYMOTION_REPO_PATH=/opt/HY-Motion-1.0
+ENV PYTHONPATH=/opt/HY-Motion-1.0
+
+RUN ln -s /opt/HY-Motion-1.0/scripts scripts \
+    && ln -s /opt/HY-Motion-1.0/stats stats
+
+# App deps + the two extras the handler needs: runpod (serverless) + boto3 (R2).
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt \
+    && pip3 install --no-cache-dir "huggingface-hub[hf_xet]" runpod boto3
+
+# Runtime config. Models download to the (persistent) volume on first use;
+# prompt rewriting stays off so the 16 GB Qwen model is never fetched.
+ENV DEVICE=cuda
+ENV MODEL_VARIANT=lite
+ENV ENABLE_PROMPT_REWRITE=false
+ENV MODEL_CACHE_DIR=/data/models
+ENV HF_HOME=/data/models/hf
+
+COPY app/ ./app/
+COPY runpod_handler.py .
+
+CMD ["python3", "runpod_handler.py"]
