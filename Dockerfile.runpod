@@ -13,7 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-RUN pip3 install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Pin to HY-Motion's exact torch (torch==2.5.1) but from the CUDA index, so the
+# later `pip install -r requirements.txt` finds it already satisfied and does NOT
+# reinstall a CPU build over it.
+RUN pip3 install --no-cache-dir torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
 
 # HY-Motion repo (git submodule) + its deps
 COPY vendor/HY-Motion-1.0 /opt/HY-Motion-1.0
