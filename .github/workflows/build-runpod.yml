@@ -32,6 +32,11 @@ jobs:
         with:
           submodules: recursive
 
+      # GHCR requires a lowercase repository name; the owner may have capitals.
+      - name: Compute lowercase image name
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/hymotion-runpod" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
@@ -47,4 +52,4 @@ jobs:
           context: .
           file: Dockerfile.runpod
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/hymotion-runpod:latest
+          tags: ${{ steps.img.outputs.name }}:latest
