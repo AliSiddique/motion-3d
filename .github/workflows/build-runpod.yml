@@ -1,11 +1,12 @@
 name: Build Runpod image
 
 # Builds Dockerfile.runpod and pushes it to GHCR so Runpod Serverless can pull it.
-# The image is lean (models download at cold start), so it fits a free runner.
+# The image bakes in ~19 GB of model weights (~30 GB total), so it aggressively
+# frees runner disk first — a free runner only has ~14 GB free out of the box.
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "Dockerfile.runpod"
       - "runpod_handler.py"
@@ -21,12 +22,20 @@ jobs:
       contents: read
       packages: write
     steps:
+      # A 30 GB image needs far more than the ~14 GB free on a stock runner.
+      # This action reliably frees ~30 GB (removes preinstalled Android SDK,
+      # .NET, GHC, CodeQL, big toolchains, etc.).
       - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
-          sudo docker image prune -af || true
-          df -h /
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+      - name: Show free disk
+        run: df -h /
 
       - uses: actions/checkout@v4
         with:
