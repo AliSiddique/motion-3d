@@ -31,6 +31,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          lfs: true
+
+      # HY-Motion keeps its SMPL body-model binaries in Git LFS. Without pulling
+      # them, the submodule has only pointer text files, which crash at model
+      # load ("buffer size must be a multiple of element size"). Pull them so the
+      # Docker COPY bakes the real binaries into the image.
+      - name: Pull Git LFS for the HY-Motion submodule
+        run: |
+          git lfs install
+          git -C vendor/HY-Motion-1.0 lfs pull
+          echo "== LFS files pulled =="
+          git -C vendor/HY-Motion-1.0 lfs ls-files | head -20
 
       # GHCR requires a lowercase repository name; the owner may have capitals.
       - name: Compute lowercase image name
