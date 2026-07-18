@@ -1,7 +1,7 @@
-# Runpod Serverless image (lean) — HY-Motion + retargeting, entrypoint is the
-# Runpod handler. Models are NOT baked in; they download once at cold start to
-# /data/models (attach a Runpod network volume there so it persists across
-# workers). This keeps the image small enough to build on GitHub Actions.
+# Runpod Serverless image — HY-Motion + retargeting, entrypoint is the Runpod
+# handler. Models ARE baked in (see the bake layer below) so workers load them
+# from local SSD at cold start — no per-cold-start download, no network volume.
+# This makes the image large (~30 GB) but cold starts fast and reliable.
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -33,13 +33,33 @@ COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt \
     && pip3 install --no-cache-dir "huggingface-hub[hf_xet]" runpod boto3
 
-# Runtime config. Models download to the (persistent) volume on first use;
-# prompt rewriting stays off so the 16 GB Qwen model is never fetched.
+# Runtime config.
 ENV DEVICE=cuda
 ENV MODEL_VARIANT=lite
 ENV ENABLE_PROMPT_REWRITE=false
 ENV MODEL_CACHE_DIR=/data/models
 ENV HF_HOME=/data/models/hf
+# text_encoder.py reads USE_HF_MODELS to pick HF ids (Qwen/Qwen3-8B, openai/clip-...).
+ENV USE_HF_MODELS=1
+
+# ---- Bake all model weights into the image ------------------------------------
+# HY-Motion's Lite variant needs three sets at runtime:
+#   1) tencent/HY-Motion-1.0 -> HY-Motion-1.0-Lite/ checkpoint       (~1.8 GB)
+#   2) Qwen/Qwen3-8B         -> the REQUIRED text encoder            (~16 GB)
+#   3) openai/clip-vit-large-patch14 -> the 768-dim sentence encoder (~1.7 GB)
+# Downloading them here (before the app COPY, so handler edits don't re-fetch)
+# means cold starts read from local SSD instead of the network. The checkpoint
+# goes to MODEL_CACHE_DIR (matches app/config.py MODEL_PATH); Qwen/CLIP land in
+# the HF cache (HF_HOME), where from_pretrained finds them.
+RUN python3 -c "from huggingface_hub import snapshot_download; \
+snapshot_download('tencent/HY-Motion-1.0', allow_patterns='HY-Motion-1.0-Lite/*', local_dir='/data/models'); \
+snapshot_download('Qwen/Qwen3-8B'); \
+snapshot_download('openai/clip-vit-large-patch14')"
+
+# Everything the model needs is on disk now — never touch the hub at cold start
+# (also skips slow per-file etag checks). Safe because all three sets are baked.
+ENV HF_HUB_OFFLINE=1
+ENV TRANSFORMERS_OFFLINE=1
 
 COPY app/ ./app/
 COPY runpod_handler.py .
